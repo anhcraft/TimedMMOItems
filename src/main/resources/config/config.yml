@@ -18,26 +18,17 @@ item-check-interval: 5
 replace-expiry-period: true
 date-format: dd/MM/yyyy
 force-update-inventory: false
+expired-type-replace:
+  CONSUMABLE:
+    - type: bukkit
+      id: rotten_flesh
+      amount: 1
 expired-item-replace:
-  DRAGON_HELMET:
-    - type: bukkit
-      id: stone
-      amount: 2
-    - type: bukkit
-      id: egg
-      amount: 128
-  DRAGON_LEGGINGS:
-    - type: bukkit
-      id: gold_blog
-      amount: 1
-    - type: armor
-      id: STEEL_LEGGINGS
-      amount: 1
   DRAGON_CHESTPLATE:
     - type: bukkit
-      id: oak_log
+      id: iron_ingot
       amount: 2
-    - type: ARMOR
-      id: STEEL_CHESTPLATE
+    - type: MATERIAL
+      id: RARE_DIAMOND
       amount: 1
 debug-level: 0
