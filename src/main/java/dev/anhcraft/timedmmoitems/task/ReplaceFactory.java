@@ -15,7 +15,7 @@ public class ReplaceFactory {
       Material material = Material.matchMaterial(itemConfig.id.toUpperCase());
       if (material == null) {
         throw new IllegalArgumentException(
-            "Could not replace expired item. Invalid Bukkit material: minecraft:"
+            "Couldn't replace expired item. Invalid Bukkit material: minecraft:"
                 + itemConfig.id.toLowerCase());
       }
       return new ItemStack(material, itemConfig.amount * multiplier);

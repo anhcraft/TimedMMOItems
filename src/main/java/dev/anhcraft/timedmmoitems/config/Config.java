@@ -50,7 +50,7 @@ public class Config {
       "Inventory update is usually handled automatically. Enable this if you experience glitch!")
   public boolean forceUpdateInventory = false;
 
-  @Describe("Expired item change")
+  @Describe("Replace specific items with another bukkit or mi items on expiration")
   @Optional
   public Map<String, List<ItemConfig>> expiredItemReplace = new HashMap<>();
 
