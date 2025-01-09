@@ -33,6 +33,7 @@ public class CheckTask extends BukkitRunnable {
 
       boolean dirtyInventory = false;
       int rmvCounter = 0; // This count item to-be-removed (excluding those to-be-replaced)
+      int rplCounter = 0;
 
       Map<String, Integer> rplItemsMap = new HashMap<>(3);
       Map<String, Integer> rplTypesMap = new HashMap<>(3);
@@ -92,6 +93,7 @@ public class CheckTask extends BukkitRunnable {
               String itemId = mmo.getId();
 
               if (plugin.config.expiredItemReplace.containsKey(itemId)) {
+                rplCounter += item.getAmount();
                 rplItemsMap.put(itemId, rplItemsMap.getOrDefault(itemId, 0) + item.getAmount());
                 mmo = null;
 
@@ -111,6 +113,7 @@ public class CheckTask extends BukkitRunnable {
               String typeId = mmo.getType().getId();
 
               if (plugin.config.expiredTypeReplace.containsKey(typeId)) {
+                rplCounter += item.getAmount();
                 rplTypesMap.put(typeId, rplTypesMap.getOrDefault(typeId, 0) + item.getAmount());
                 mmo = null;
 
@@ -166,6 +169,13 @@ public class CheckTask extends BukkitRunnable {
 
       int itemDropped = itemReplace(player, rplItemsMap, false);
       itemDropped |= itemReplace(player, rplTypesMap, true);
+
+      if (rplCounter > 0) {
+        String msg =
+            plugin.config.expiredItemRemoved.replace("%amount%", Integer.toString(rplCounter));
+        player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
+      }
 
       if (itemDropped == 1) {
         String msg = plugin.config.replacedItemDropped;
