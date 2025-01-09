@@ -21,15 +21,12 @@ force-update-inventory: false
 enable-bypass-permission: false
 expired-type-replace:
   CONSUMABLE:
-    - type: bukkit
-      id: rotten_flesh
+    - id: minecraft:rotten_flesh
       amount: 1
 expired-item-replace:
   DRAGON_CHESTPLATE:
-    - type: bukkit
-      id: iron_ingot
+    - id: minecraft:iron_ingot
       amount: 2
-    - type: MATERIAL
-      id: RARE_DIAMOND
+    - id: mi:MATERIAL:RARE_DIAMOND
       amount: 1
 debug-level: 0
