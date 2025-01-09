@@ -18,6 +18,7 @@ item-check-interval: 5
 replace-expiry-period: true
 date-format: dd/MM/yyyy
 force-update-inventory: false
+enable-bypass-permission: false
 expired-type-replace:
   CONSUMABLE:
     - type: bukkit

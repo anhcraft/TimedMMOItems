@@ -50,6 +50,8 @@ public class Config {
       "Inventory update is usually handled automatically. Enable this if you experience glitch!")
   public boolean forceUpdateInventory = false;
 
+  public boolean enableBypassPermission = false;
+
   @Describe("Replace items of certain mi types with another bukkit or mi items upon expiration")
   @Optional
   public Map<String, List<ItemConfig>> expiredTypeReplace = new HashMap<>();
