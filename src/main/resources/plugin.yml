@@ -5,3 +5,4 @@ api-version: 1.14
 depend: [ MMOItems ]
 authors: [ anhcraft ]
 description: TimedMMOItems
+softdepend: [ MMOInventory ]

@@ -160,5 +160,12 @@
             <version>0.5.1-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>com.MMOInventory</groupId>
+            <artifactId>MMOInventory</artifactId>
+            <version>1.9.1-25-4</version>
+            <systemPath>${project.basedir}/libs/MMOInventory-1.9.1-25-4.jar</systemPath>
+            <scope>system</scope>
+        </dependency>
     </dependencies>
 </project>

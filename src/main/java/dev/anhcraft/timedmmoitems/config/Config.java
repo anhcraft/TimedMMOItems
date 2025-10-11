@@ -2,6 +2,7 @@ package dev.anhcraft.timedmmoitems.config;
 
 import dev.anhcraft.config.meta.*;
 import dev.anhcraft.config.meta.Optional;
+import dev.anhcraft.timedmmoitems.util.ExtraInventoryTypes;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -61,6 +62,10 @@ public class Config {
           + " replacement by type.")
   @Optional
   public Map<String, List<ItemConfig>> expiredItemReplace = new HashMap<>();
+
+  @Describe("Manage checks on extra inventory types provided and managed by third-party plugins.")
+  @Optional
+  public Map<ExtraInventoryTypes, Boolean> extraInventoryChecks = new HashMap<>();
 
   @Describe("Debug level")
   public int debugLevel;

@@ -29,4 +29,6 @@ expired-item-replace:
       amount: 2
     - id: mi:MATERIAL:RARE_DIAMOND
       amount: 1
+extra-inventory-checks:
+  MMO_INVENTORY: true
 debug-level: 0

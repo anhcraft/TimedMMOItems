@@ -5,20 +5,31 @@ import static dev.anhcraft.timedmmoitems.TimedMMOItems.EXPIRY_PERIOD;
 
 import dev.anhcraft.timedmmoitems.TimedMMOItems;
 import dev.anhcraft.timedmmoitems.config.ItemConfig;
+import dev.anhcraft.timedmmoitems.task.extras.MMOInventoryCheck;
+import dev.anhcraft.timedmmoitems.util.ExtraInventoryTypes;
 import io.lumine.mythic.lib.api.item.NBTItem;
 import java.util.*;
+import java.util.function.Predicate;
 import net.Indyuce.mmoitems.api.item.mmoitem.LiveMMOItem;
 import net.Indyuce.mmoitems.stat.data.DoubleData;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class CheckTask extends BukkitRunnable {
+  private static final Map<ExtraInventoryTypes, Predicate<Inventory>> INVENTORY_FILTERS =
+      Map.of(
+          ExtraInventoryTypes.MMO_INVENTORY,
+          (inv) ->
+              Bukkit.getPluginManager().isPluginEnabled("MMOInventory")
+                  && MMOInventoryCheck.INSTANCE.matches(inv));
+
   private final TimedMMOItems plugin;
-  private boolean itemsDroppedFlag;
 
   public CheckTask(TimedMMOItems plugin) {
     this.plugin = plugin;
@@ -30,157 +41,169 @@ public class CheckTask extends BukkitRunnable {
       if (plugin.config.enableBypassPermission && player.hasPermission("timeditems.bypass")) {
         continue;
       }
+      process(player, player.getInventory());
 
-      boolean dirtyInventory = false;
-      int rmvCounter = 0; // This count item to-be-removed (excluding those to-be-replaced)
-      int rplCounter = 0;
-
-      Map<String, Integer> rplItemsMap = new HashMap<>(3);
-      Map<String, Integer> rplTypesMap = new HashMap<>(3);
-      List<ItemStack> newItems = new ArrayList<>(player.getInventory().getSize());
-
-      for (ItemStack item : player.getInventory().getContents()) {
-        if (item == null
-            || item.getType().isAir()
-            // || !item.hasItemMeta() // custom NBT tag might not create ItemMeta
-            || NBTItem.get(item).getType() == null) {
-          newItems.add(item);
-          continue;
-        }
-
-        // If mmo become null, the item would be removed
-        // If dirty is true, the item would be updated
-        LiveMMOItem mmo = new LiveMMOItem(item);
-        boolean dirty = false;
-
-        // Check 1: Add EXPIRY_DATE and possibly remove EXPIRY_PERIOD (if required)
-        if (mmo.hasData(EXPIRY_PERIOD) && !mmo.hasData(EXPIRY_DATE)) {
-          double expiryPeriod = ((DoubleData) mmo.getData(EXPIRY_PERIOD)).getValue();
-          double expiryDate = System.currentTimeMillis();
-          expiryDate += expiryPeriod * 1000d;
-          mmo.setData(EXPIRY_DATE, new DoubleData(expiryDate));
-
-          if (plugin.config.replaceExpiryPeriod) {
-            mmo.removeData(EXPIRY_PERIOD);
-            TimedMMOItems.plugin.debug(
-                1,
-                "%s item has EXPIRY_PERIOD(%.1f) but no EXPIRY_DATE => Create EXPIRY_DATE(%.1f),"
-                    + " and remove EXPIRY_PERIOD",
-                player.getName(),
-                expiryPeriod,
-                expiryDate);
-          } else {
-            TimedMMOItems.plugin.debug(
-                1,
-                "%s item has EXPIRY_PERIOD(%.1f) but no EXPIRY_DATE => Create EXPIRY_DATE(%.1f)",
-                player.getName(),
-                expiryPeriod,
-                expiryDate);
+      for (ExtraInventoryTypes type : INVENTORY_FILTERS.keySet()) {
+        if (Objects.equals(plugin.config.extraInventoryChecks.get(type), true)) {
+          Inventory inv = player.getOpenInventory().getTopInventory();
+          if (INVENTORY_FILTERS.get(type).test(inv)) {
+            process(player, inv);
           }
+        }
+      }
+    }
+  }
 
-          dirty = true;
-          // Do not terminate here. Continue with the next check.
+  private void process(Player player, Inventory inventory) {
+    boolean dirtyInventory = false;
+    int rmvCounter = 0; // This count item to-be-removed (excluding those to-be-replaced)
+    int rplCounter = 0;
+
+    Map<String, Integer> rplItemsMap = new HashMap<>(3);
+    Map<String, Integer> rplTypesMap = new HashMap<>(3);
+    List<ItemStack> newItems = new ArrayList<>(inventory.getSize());
+
+    for (ItemStack item : inventory.getContents()) {
+      if (item == null
+          || item.getType().isAir()
+          // || !item.hasItemMeta() // custom NBT tag might not create ItemMeta
+          || NBTItem.get(item).getType() == null) {
+        newItems.add(item);
+        continue;
+      }
+
+      // If mmo become null, the item would be removed
+      // If dirty is true, the item would be updated
+      LiveMMOItem mmo = new LiveMMOItem(item);
+      boolean dirty = false;
+
+      // Check 1: Add EXPIRY_DATE and possibly remove EXPIRY_PERIOD (if required)
+      if (mmo.hasData(EXPIRY_PERIOD) && !mmo.hasData(EXPIRY_DATE)) {
+        double expiryPeriod = ((DoubleData) mmo.getData(EXPIRY_PERIOD)).getValue();
+        double expiryDate = System.currentTimeMillis();
+        expiryDate += expiryPeriod * 1000d;
+        mmo.setData(EXPIRY_DATE, new DoubleData(expiryDate));
+
+        if (plugin.config.replaceExpiryPeriod) {
+          mmo.removeData(EXPIRY_PERIOD);
+          TimedMMOItems.plugin.debug(
+              1,
+              "%s item has EXPIRY_PERIOD(%.1f) but no EXPIRY_DATE => Create EXPIRY_DATE(%.1f),"
+                  + " and remove EXPIRY_PERIOD",
+              player.getName(),
+              expiryPeriod,
+              expiryDate);
+        } else {
+          TimedMMOItems.plugin.debug(
+              1,
+              "%s item has EXPIRY_PERIOD(%.1f) but no EXPIRY_DATE => Create EXPIRY_DATE(%.1f)",
+              player.getName(),
+              expiryPeriod,
+              expiryDate);
         }
 
-        // Check 2: Handle expired items
-        if (mmo.hasData(EXPIRY_DATE)) {
-          double expiryDate = ((DoubleData) mmo.getData(EXPIRY_DATE)).getValue();
+        dirty = true;
+        // Do not terminate here. Continue with the next check.
+      }
 
-          if (expiryDate < System.currentTimeMillis()) {
+      // Check 2: Handle expired items
+      if (mmo.hasData(EXPIRY_DATE)) {
+        double expiryDate = ((DoubleData) mmo.getData(EXPIRY_DATE)).getValue();
 
-            // Check 2.a. Replace item based on item ID (more specific than type ID)
-            if (!plugin.config.expiredItemReplace.isEmpty()) {
-              String itemId = mmo.getId();
+        if (expiryDate < System.currentTimeMillis()) {
 
-              if (plugin.config.expiredItemReplace.containsKey(itemId)) {
-                rplCounter += item.getAmount();
-                rplItemsMap.put(itemId, rplItemsMap.getOrDefault(itemId, 0) + item.getAmount());
-                mmo = null;
+          // Check 2.a. Replace item based on item ID (more specific than type ID)
+          if (!plugin.config.expiredItemReplace.isEmpty()) {
+            String itemId = mmo.getId();
 
-                TimedMMOItems.plugin.debug(
-                    1,
-                    "%s item has EXPIRY_DATE(%.1f) before the current (%d) => Replace by ItemId"
-                        + " (%s)",
-                    player.getName(),
-                    expiryDate,
-                    System.currentTimeMillis(),
-                    itemId);
-              }
-            }
-
-            // Check 2.b. Replace item based on type ID
-            if (mmo != null && !plugin.config.expiredTypeReplace.isEmpty()) {
-              String typeId = mmo.getType().getId();
-
-              if (plugin.config.expiredTypeReplace.containsKey(typeId)) {
-                rplCounter += item.getAmount();
-                rplTypesMap.put(typeId, rplTypesMap.getOrDefault(typeId, 0) + item.getAmount());
-                mmo = null;
-
-                TimedMMOItems.plugin.debug(
-                    1,
-                    "%s item has EXPIRY_DATE(%.1f) before the current (%d) => Replace by TypeId"
-                        + " (%s)",
-                    player.getName(),
-                    expiryDate,
-                    System.currentTimeMillis(),
-                    typeId);
-              }
-            }
-
-            // Check 2.c. Remove expired item
-            if (mmo != null && plugin.config.removeExpiredItem) {
-              rmvCounter += item.getAmount();
+            if (plugin.config.expiredItemReplace.containsKey(itemId)) {
+              rplCounter += item.getAmount();
+              rplItemsMap.put(itemId, rplItemsMap.getOrDefault(itemId, 0) + item.getAmount());
               mmo = null;
 
               TimedMMOItems.plugin.debug(
                   1,
-                  "%s item has EXPIRY_DATE(%.1f) before the current (%d) => Remove",
+                  "%s item has EXPIRY_DATE(%.1f) before the current (%d) => Replace by ItemId"
+                      + " (%s)",
                   player.getName(),
                   expiryDate,
-                  System.currentTimeMillis());
+                  System.currentTimeMillis(),
+                  itemId);
             }
           }
+
+          // Check 2.b. Replace item based on type ID
+          if (mmo != null && !plugin.config.expiredTypeReplace.isEmpty()) {
+            String typeId = mmo.getType().getId();
+
+            if (plugin.config.expiredTypeReplace.containsKey(typeId)) {
+              rplCounter += item.getAmount();
+              rplTypesMap.put(typeId, rplTypesMap.getOrDefault(typeId, 0) + item.getAmount());
+              mmo = null;
+
+              TimedMMOItems.plugin.debug(
+                  1,
+                  "%s item has EXPIRY_DATE(%.1f) before the current (%d) => Replace by TypeId"
+                      + " (%s)",
+                  player.getName(),
+                  expiryDate,
+                  System.currentTimeMillis(),
+                  typeId);
+            }
+          }
+
+          // Check 2.c. Remove expired item
+          if (mmo != null && plugin.config.removeExpiredItem) {
+            rmvCounter += item.getAmount();
+            mmo = null;
+
+            TimedMMOItems.plugin.debug(
+                1,
+                "%s item has EXPIRY_DATE(%.1f) before the current (%d) => Remove",
+                player.getName(),
+                expiryDate,
+                System.currentTimeMillis());
+          }
         }
-
-        // Apply changes
-        if (mmo == null) {
-          newItems.add(new ItemStack(Material.AIR));
-          dirtyInventory = true;
-        } else if (dirty) {
-          newItems.add(mmo.newBuilder().build());
-          dirtyInventory = true;
-        } else {
-          newItems.add(item);
-        }
       }
 
-      if (dirtyInventory) {
-        player.getInventory().setContents(newItems.toArray(new ItemStack[0]));
-        if (plugin.config.forceUpdateInventory) player.updateInventory();
+      // Apply changes
+      if (mmo == null) {
+        newItems.add(new ItemStack(Material.AIR));
+        dirtyInventory = true;
+      } else if (dirty) {
+        newItems.add(mmo.newBuilder().build());
+        dirtyInventory = true;
+      } else {
+        newItems.add(item);
       }
+    }
 
-      if (rmvCounter > 0) {
-        String msg =
-            plugin.config.expiredItemRemoved.replace("%amount%", Integer.toString(rmvCounter));
-        player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
-      }
+    if (dirtyInventory) {
+      inventory.setContents(newItems.toArray(new ItemStack[0]));
+      if (plugin.config.forceUpdateInventory) player.updateInventory();
+    }
 
-      int itemDropped = itemReplace(player, rplItemsMap, false);
-      itemDropped |= itemReplace(player, rplTypesMap, true);
+    if (rmvCounter > 0) {
+      String msg =
+          plugin.config.expiredItemRemoved.replace("%amount%", Integer.toString(rmvCounter));
+      player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+      player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
+    }
 
-      if (rplCounter > 0) {
-        String msg =
-            plugin.config.expiredItemRemoved.replace("%amount%", Integer.toString(rplCounter));
-        player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
-      }
+    int itemDropped = itemReplace(player, rplItemsMap, false);
+    itemDropped |= itemReplace(player, rplTypesMap, true);
 
-      if (itemDropped == 1) {
-        String msg = plugin.config.replacedItemDropped;
-        player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
-      }
+    if (rplCounter > 0) {
+      String msg =
+          plugin.config.expiredItemRemoved.replace("%amount%", Integer.toString(rplCounter));
+      player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+      player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
+    }
+
+    if (itemDropped == 1) {
+      String msg = plugin.config.replacedItemDropped;
+      player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
     }
   }
 
